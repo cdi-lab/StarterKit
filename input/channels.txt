@@ -1,0 +1,3 @@
+Label	Secondary
+red	IgG
+green	IgA
