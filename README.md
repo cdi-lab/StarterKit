@@ -39,9 +39,18 @@ An additional file may be provided which specifies the A-vs-B comparisons which 
 |19_CDI7890995.gpr|control|control|
 |20_CDI7890996.gpr|control|control|
 
+The first column represents each .gpr file provided and each additional column specifies a comparison where specific sub-sets of the available files are assigned to either the case or control group.
+
 ## Running the pipeline
 
+Running the StartKit scripts can be done by either in RStudio or by running the scripts from the command line, *keeping in my that the scripts must be places within the same parent folder as the input and output folders!*
+
 ```shell
+Rscript QC.R
+Rscript pipeline.R
 ```
 
 ### Output Files
+Once the scripts have been run the output folder will contain the resulting QC and pipeline outputs. These include:
+
+ 
