@@ -1,6 +1,6 @@
-# Copyright © 2022 CDI Laboratories Inc. | All Rights Reserved |
+# Copyright 2022 CDI Laboratories Inc. | All Rights Reserved |
 
-version <- "C0.3"
+version <- "C0.1"
 
 library(preprocessCore)
 #
@@ -32,14 +32,6 @@ if(length(args) == 2){
 CONTROL_PATTERN <- "Control"
 
 SUPPRESSED_LABELS <- c("TRIM21", 'control', 'blank', 'empty', 'nd', 'n.d', 'n.d.', 'none', 'bsa', 'buffer', 'subclass', "igha1", "igha2", "ighd", "ighg1", "ighg3", "ighg4", "ighv5-78", "ighv7-81", "igip", "igk", "igkc", "igkv1or2-108", "igl@", "iglc2", "igll1", "igll5", "iglon5", "iglv6-57")
-
-channel_path = paste(input_fpath, "/channels.txt", sep="")
-if(!file.exists(channel_path)){
-  print(channel_path)
-  quit(save = "no", status = 1)
-}
-
-channels <- read.delim(channel_path,sep="\t", stringsAsFactors=FALSE)
 
 drop_gpr_suffix <- function(aName){
   substr(aName,1,nchar(aName)-4)
@@ -74,57 +66,7 @@ load_gpr <- function(filename, keep_info_columns=FALSE, channel="red"){
   }
 }
 
-
-do_A_vs_B_comparisons <- function(dcols, info_cols, comparison_fname, output_name){
-  comparisons <- read.delim(comparison_fname, sep="\t", stringsAsFactors=FALSE)
-  comparisons$Sample <- drop_gpr_suffix(comparisons$Sample)
-  
-  data <- as.matrix(dcols)
-  data[data == 0] <- 1
-  data <- log2(data)
-  stopifnot(colnames(data) == comparisons$Sample)
-  
-  complete <- info_cols
-  for(col in 2:ncol(comparisons)){
-    labels <- levels(factor(comparisons[,col], exclude=""))
-    if(tolower(labels[1]) == "control"){
-      control <- labels[1]
-      treatment <- labels[2]
-    } else {
-      control <- labels[1]
-      treatment <- labels[2]
-    }
-    title <- colnames(comparisons)[col]
-    AvsB_pval <- c()
-    AvsB_ratio <- c()
-    for(i in 1:nrow(data)){
-      A <- comparisons[,col]==treatment
-      B <- comparisons[,col]==control
-      AvsB_ratio <- c(AvsB_ratio,mean(data[i,A])-mean(data[i,B]))
-      if(sd(data[i,A])>0 && sd(data[i,B])>0){
-        AvsB_pval <- c(AvsB_pval,t.test(data[i,A],data[i,B])$p.value)
-      } else {
-        AvsB_pval <- c(AvsB_pval,1)
-      }
-    }
-    
-    output <- cbind( 
-      AvsB_ratio, 
-      AvsB_pval, 
-      p.adjust(AvsB_pval, method="bonferroni"), 
-      p.adjust(AvsB_pval, method="BH"),
-      p.adjust(AvsB_pval, method="BY"))
-    colnames(output)[1] <- paste(title, ": Ratio (Log2)", sep="")
-    colnames(output)[2] <- paste(title, ": P-value (T-test)", sep="")
-    colnames(output)[3] <- paste(title, ": Bonferroni", sep="")
-    colnames(output)[4] <- paste(title, ": FDR (BH)", sep="")
-    colnames(output)[5] <- paste(title, ": FDR (BY)", sep="")
-    complete <- cbind(complete, output)
-  }
-  write.table(complete, file=output_name, sep="\t", row.names = FALSE)
-}
-
-run_pipeline <- function(input_fpath, output_fpath, channel="red", secondary=""){
+run_pipeline <- function(input_fpath, output_fpath, channel="red"){
 
   startup_path <- getwd()
   setwd(input_fpath)
@@ -160,23 +102,9 @@ run_pipeline <- function(input_fpath, output_fpath, channel="red", secondary="")
   colnames(dcolsn) <- colnames(dcols)
 
   if(channel == "red"){
-    if(secondary != ""){
-      channel_name = paste(secondary, "_635nm_Red", sep="")
-    } else{
-      channel_name = "635nm_Red"
-    }
+    channel_name = "635nm_Red"
   } else {
-    if(secondary != ""){
-      channel_name = paste(secondary, "_532nm_Green", sep="")
-    } else{
-      channel_name = "532nm_Green"
-    }
-  }
-  
-  A_vs_B_comparison_fname = paste(input_fpath, "/comparisons.tsv", sep="")
-  if(file.exists(A_vs_B_comparison_fname)){
-    do_A_vs_B_comparisons(dcols, info_cols, A_vs_B_comparison_fname, paste(output_fpath, "/Case_vs_Control_Raw_PairAvg_", channel_name, ".tsv",sep=""))
-    do_A_vs_B_comparisons(dcolsn, info_cols, A_vs_B_comparison_fname, paste(output_fpath, "/Case_vs_Control_QuantileNorm_PairAvg_", channel_name, ".tsv",sep=""))
+    channel_name = "532nm_Green"
   }
   
   combined_gprsn <-cbind(info_cols, dcolsn)
@@ -189,11 +117,5 @@ run_pipeline <- function(input_fpath, output_fpath, channel="red", secondary="")
   write.table(combined_ctrls, file=paste(output_fpath, "/Controls_Raw_PairAvg_", channel_name, ".tsv", sep=""), sep="\t", row.names=FALSE)
 }
 
-for(i in 1:nrow(channels)){
-  if(channels$Label[i] == "red"){
-    run_pipeline(input_fpath, output_fpath, channel="red", secondary=channels$Secondary[i])
-  }
-  if(channels$Label[i] == "green"){
-    run_pipeline(input_fpath, output_fpath, channel="green", secondary=channels$Secondary[i])
-  }
-}
+run_pipeline(input_fpath, output_fpath, channel="red")
+run_pipeline(input_fpath, output_fpath, channel="green")
